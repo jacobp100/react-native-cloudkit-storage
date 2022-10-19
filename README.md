@@ -29,7 +29,7 @@ CloudKitStorage.addListener('change', ({ key, value }) => {
 });
 ```
 
-# Set Up
+## Set Up
 
 Open XCode.
 
@@ -38,6 +38,8 @@ Click the top item in the files list (your project). In the `Signing & Capabilit
 Scroll down to the `iCloud` section, then click the `CloudKit`. It may ask you to set your team.
 
 Under containers, click the `+` button. Pick a name in the form `iCloud.org.{team name}.{project name}`. Ensure it is checked.
+
+**It can take a day or so for the CloudKit database to fully set up.** If you're having issues, wait a few days, and check again.
 
 Next, open `AppDelegate.m` and add the following,
 
@@ -57,8 +59,6 @@ Next, open `AppDelegate.m` and add the following,
   }
 }
 ```
-
-**It can take a day or so for the CloudKit database to fully set up.** If you're having issues, wait a few days, and check again.
 
 ## Contributing
 
