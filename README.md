@@ -2,6 +2,8 @@
 
 Like AsyncStorage, but syncs with Apple's CloudKit
 
+Exported from [TechniCalc](https://jacobdoescode.com/technicalc)
+
 ## Installation
 
 ```sh
