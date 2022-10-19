@@ -1,6 +1,6 @@
 {
   "name": "react-native-cloudkit-storage",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Like AsyncStorage, but syncs with Apple's CloudKit",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
