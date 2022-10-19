@@ -20,8 +20,8 @@ await CloudKitStorage.setItem('itemName', JSON.stringify({ key: 'value' }));
 const json = JSON.parse(await CloudKitStorage.getItem('itemName'));
 
 // Handle remote events
-CloudKitStorage.addListener('delete', ({ key, value }) => {
-  console.log(`Deleted item ${key}`, value);
+CloudKitStorage.addListener('delete', ({ key }) => {
+  console.log(`Deleted item ${key}`);
 });
 // Remote events only - not called when calling setItem
 CloudKitStorage.addListener('change', ({ key, value }) => {
