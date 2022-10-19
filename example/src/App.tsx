@@ -1,18 +1,46 @@
 import * as React from 'react';
 
-import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'react-native-cloudkit-storage';
+import { StyleSheet, View, Text, Button } from 'react-native';
+import CloudKitStorage from 'react-native-cloudkit-storage';
 
 export default function App() {
-  const [result, setResult] = React.useState<number | undefined>();
+  const [value, setValue] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    multiply(3, 7).then(setResult);
+    let cancelled = false;
+    CloudKitStorage.getItem('key').then((nextValue) => {
+      if (!cancelled) {
+        setValue(nextValue!);
+      }
+    });
+
+    const changeListener = CloudKitStorage.addListener(
+      'change',
+      ({ key, value: nextValue }) => {
+        if (key === 'key') {
+          setValue(nextValue!);
+        }
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      changeListener.remove();
+    };
   }, []);
 
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>Value: {value ?? '...'}</Text>
+      <Button
+        title="Set value"
+        onPress={() => {
+          const nextValue = String(Math.random());
+          CloudKitStorage.setItem('key', nextValue).then(() => {
+            setValue(nextValue);
+          });
+        }}
+      />
     </View>
   );
 }
