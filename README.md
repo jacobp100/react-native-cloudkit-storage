@@ -50,6 +50,13 @@ Next, open `AppDelegate.m` and add the following,
 ```
 
 ```objc
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+  // ...
+  [application registerForRemoteNotifications];
+  // ...
+}
+
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
   BOOL didHandle = [RCTCloudKitStorage
@@ -61,6 +68,16 @@ Next, open `AppDelegate.m` and add the following,
   }
 }
 ```
+
+### macOS
+
+If you're targeting macOS via Catalyst, the default React Native setup has a bug in it where the app will open itself whenever the CloudKit database changes. To fix this, you'll need to be very comfortable with iOS development, but the following steps should help.
+
+- Remove the React-Native logic from `AppDelegate.m` and implement it in your own `UIViewController`
+- Add/keep `@property (nonatomic, strong) UIWindow *window;` in your app delegate
+- Your view controller must conform to `RCTBridgeDelegate`
+- Implement `- (void)loadView` and initialize `self.view` with an instance of `RCTRootView`
+- Add a `Main.storyboard`, and point it to your new view controller. You don't need to set a view subclass
 
 ## Contributing
 
