@@ -1,8 +1,8 @@
 # react-native-cloudkit-storage
 
-Like AsyncStorage, but syncs with Apple's CloudKit
+<a href="https://jacobdoescode.com/technicalc"><img alt="Part of the TechniCalc Project" src="https://github.com/jacobp100/technicalc-core/blob/master/banner.png" width="200" height="60"></a>
 
-Exported from [TechniCalc](https://jacobdoescode.com/technicalc)
+Like AsyncStorage, but syncs with Apple's CloudKit
 
 ## Installation
 
