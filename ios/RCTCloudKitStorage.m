@@ -10,6 +10,8 @@ static NSString *const kRCTCloudKitRecordType =
   @"RCTCloudKitRecordType";
 static NSString *const kRCTCloudKitSubscription =
   @"RCTCloudKitSubscription";
+static NSString *const kRCTCloudKitUserDefaultsDidCreateZone =
+  @"RCTCloudKitUserDefaultsDidCreateZone";
 static NSString *const kRCTCloudKitUserDefaultsDidRegisterSubscription =
   @"RCTCloudKitUserDefaultsDidRegisterSubscription";
 static NSString *const kRCTCloudKitUserDefaultsServerChangeToken =
@@ -189,44 +191,107 @@ RCT_EXPORT_MODULE()
   }
 }
 
-RCT_EXPORT_METHOD(registerForPushUpdates)
+- (void)ensureZoneCreated:(void (^)(void))onComplete
+                  onError:(void (^)(NSError * _Nullable error))onError
 {
   if ([NSUserDefaults.standardUserDefaults
-       boolForKey:kRCTCloudKitUserDefaultsDidRegisterSubscription]) {
+       boolForKey:kRCTCloudKitUserDefaultsDidCreateZone]) {
+    onComplete();
     return;
   }
 
-  CKRecordZoneSubscription *subscription =
-    [[CKRecordZoneSubscription alloc]
-     initWithZoneID:RCTCloudKitStorage.zone.zoneID
-     subscriptionID:kRCTCloudKitSubscription];
+  [CKContainer.defaultContainer.privateCloudDatabase
+   fetchRecordZoneWithID:RCTCloudKitStorage.zone.zoneID
+   completionHandler:^(CKRecordZone * _Nullable existing, NSError * _Nullable error) {
+    if (existing != nil) {
+      [NSUserDefaults.standardUserDefaults
+       setBool:YES
+       forKey:kRCTCloudKitUserDefaultsDidCreateZone];
+      onComplete();
+      return;
+    }
 
-  subscription.recordType = kRCTCloudKitRecordType;
+    [CKContainer.defaultContainer.privateCloudDatabase
+     saveRecordZone:RCTCloudKitStorage.zone
+     completionHandler:^(CKRecordZone * _Nullable zone, NSError * _Nullable error) {
+      if (error != nil) {
+        onError(error);
+      } else {
+        [NSUserDefaults.standardUserDefaults
+         setBool:YES
+         forKey:kRCTCloudKitUserDefaultsDidCreateZone];
+        onComplete();
+      }
+    }];
+  }];
+}
 
-  CKNotificationInfo *notificationInfo = [CKNotificationInfo new];
-  notificationInfo.shouldSendContentAvailable = YES;
-  subscription.notificationInfo = notificationInfo;
+- (void)ensureSubscriptionActive:(void (^)(void))onComplete
+                         onError:(void (^)(NSError * _Nullable error))onError
+{
+  if ([NSUserDefaults.standardUserDefaults
+       boolForKey:kRCTCloudKitUserDefaultsDidRegisterSubscription]) {
+    onComplete();
+    return;
+  }
 
-  CKModifySubscriptionsOperation *operation =
-    [[CKModifySubscriptionsOperation alloc]
-     initWithSubscriptionsToSave:@[subscription]
-     subscriptionIDsToDelete:NULL];
-
-  operation.modifySubscriptionsCompletionBlock = ^(NSArray *subscriptions,
-                                                   NSArray *deleted,
-                                                   NSError *error) {
-    if (error) {
-      NSLog(@"Failed to register for push updates (%@)", error.description);
-    } else {
+  [CKContainer.defaultContainer.privateCloudDatabase
+   fetchSubscriptionWithID:kRCTCloudKitSubscription
+   completionHandler:^(CKSubscription * _Nullable existing, NSError * _Nullable error) {
+    if (existing != nil) {
       [NSUserDefaults.standardUserDefaults
        setBool:YES
        forKey:kRCTCloudKitUserDefaultsDidRegisterSubscription];
+      onComplete();
+      return;
     }
-  };
 
-  operation.qualityOfService = NSQualityOfServiceUtility;
+    CKRecordZoneSubscription *subscription =
+      [[CKRecordZoneSubscription alloc]
+       initWithZoneID:RCTCloudKitStorage.zone.zoneID
+       subscriptionID:kRCTCloudKitSubscription];
 
-  [CKContainer.defaultContainer.privateCloudDatabase addOperation:operation];
+    subscription.recordType = kRCTCloudKitRecordType;
+
+    CKNotificationInfo *notificationInfo = [CKNotificationInfo new];
+    notificationInfo.shouldSendContentAvailable = YES;
+    subscription.notificationInfo = notificationInfo;
+
+    CKModifySubscriptionsOperation *operation =
+      [[CKModifySubscriptionsOperation alloc]
+       initWithSubscriptionsToSave:@[subscription]
+       subscriptionIDsToDelete:NULL];
+
+    operation.modifySubscriptionsCompletionBlock = ^(NSArray *subscriptions,
+                                                     NSArray *deleted,
+                                                     NSError *error) {
+      if (error) {
+        onError(error);
+      } else {
+        [NSUserDefaults.standardUserDefaults
+         setBool:YES
+         forKey:kRCTCloudKitUserDefaultsDidRegisterSubscription];
+      }
+      onComplete();
+    };
+
+    operation.qualityOfService = NSQualityOfServiceUtility;
+
+    [CKContainer.defaultContainer.privateCloudDatabase addOperation:operation];
+  }];
+}
+
+RCT_EXPORT_METHOD(registerForPushUpdates)
+{
+  [self ensureZoneCreated:^() {
+    [self ensureSubscriptionActive:^() {
+      NSLog(@"CloudKit registered for push updates");
+    } onError:^(NSError * _Nullable error) {
+        NSLog(@"Failed to create subscription (%@)", error.description);
+    }];
+  } onError:^(NSError * _Nullable error) {
+    NSLog(@"Failed to create zone (%@)", error.description);
+  }];
 }
 
 RCT_EXPORT_METHOD(getItem:(NSString *)recordName
@@ -239,11 +304,16 @@ RCT_EXPORT_METHOD(getItem:(NSString *)recordName
   [CKContainer.defaultContainer.privateCloudDatabase
    fetchRecordWithID:recordId
    completionHandler:^(CKRecord *record, NSError *error) {
+    if (error.code == CKErrorUnknownItem) {
+      reject(@"record_not_found", @"Record not found", error);
+      return;
+    }
+
     NSString *contents = error == nil ? [self contentsOfRecord:record] : nil;
     if (contents != nil) {
       resolve(contents);
     } else {
-      reject(@"could_not_load_contents", @"Could not load contents", error);
+      reject(@"could_not_load_contents", @"Could not load contents", nil);
     }
   }];
 }
