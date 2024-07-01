@@ -304,14 +304,11 @@ RCT_EXPORT_METHOD(getItem:(NSString *)recordName
   [CKContainer.defaultContainer.privateCloudDatabase
    fetchRecordWithID:recordId
    completionHandler:^(CKRecord *record, NSError *error) {
-    if (error.code == CKErrorUnknownItem) {
-      reject(@"record_not_found", @"Record not found", error);
-      return;
-    }
-
     NSString *contents = error == nil ? [self contentsOfRecord:record] : nil;
     if (contents != nil) {
       resolve(contents);
+    } else if (error.code == CKErrorUnknownItem) {
+      resolve([NSNull null]);
     } else {
       reject(@"could_not_load_contents", @"Could not load contents", nil);
     }
